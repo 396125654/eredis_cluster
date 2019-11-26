@@ -36,14 +36,12 @@ start_link(Name, Opts) ->
   gen_server:start_link({local, MonitorName}, ?MODULE, [Name, Opts], []).
 
 connect(Name, Nodes) ->
-  Pools = application:get_env(eredis, pools, []),
-  Opts = proplists:get_value(Name, Pools, []),
+  Opts = application:get_env(eredis_cluster, Name, []),
   MonitorName = eredis_cluster:get_cluster_name(Name),
   gen_server:call(MonitorName, {connect, Name, Nodes, Opts}).
 
 refresh_mapping(Name, Version) ->
-  Pools = application:get_env(eredis, pools, []),
-  Opts = proplists:get_value(Name, Pools, []),
+  Opts = application:get_env(eredis_cluster, Name, []),
   MonitorName = eredis_cluster:get_cluster_name(Name),
   gen_server:call(MonitorName, {reload_slots_map, Name, Version, Opts}).
 
@@ -201,7 +199,7 @@ connect_node(Name, Node, Opts) ->
 safe_eredis_start_link(Address, Port, Opts) ->
   process_flag(trap_exit, true),
   DataBase = proplists:get_value(db, Opts, ?DEFAULT_DATABASE),
-  Password = application:get_env(password, Opts, ?DEFAULT_PASSWORD),
+  Password = proplists:get_value(password, Opts, ?DEFAULT_PASSWORD),
   Payload = eredis:start_link(Address, Port, DataBase, Password),
   process_flag(trap_exit, false),
   Payload.

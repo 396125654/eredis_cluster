@@ -27,8 +27,8 @@ init_pool() ->
   ].
 
 init_cluster() ->
-  Pools = application:get_env(eredis, pools, []),
-  init_cluster(Pools, []).
+  ClusterOpts = get_cluster_opts(),
+  init_cluster(ClusterOpts, []).
 
 init_cluster([{Name, Opts}|Rest], Acc) ->
   ClusterName = eredis_cluster:get_cluster_name(Name),
@@ -42,4 +42,10 @@ init_cluster([{Name, Opts}|Rest], Acc) ->
 init_cluster([], Acc) ->
   lists:reverse(Acc).
 
-
+get_cluster_opts() ->
+  AllOpts = application:get_all_env(eredis_cluster),
+  lists:filter(
+    fun({included_applications, _}) -> false;
+       ({_, Opts}) when is_list(Opts) -> lists:keymember(nodes, 1, Opts);
+       (_) -> false
+    end, AllOpts).

@@ -1,11 +1,21 @@
 {application, eredis_cluster, [
-    {description, "Eredis Cluster"},
-    {vsn, "0.5.12"},
-    {modules, []},
-    {registered, []},
-    {applications, [
-        kernel,
-        stdlib
-    ]},
-    {env, []}
+  {description, "Eredis Cluster"},
+  {vsn, "0.5.12"},
+  {modules, []},
+  {registered, []},
+  {applications, [
+    kernel,
+    stdlib
+  ]},
+  {env, [
+    {common, [
+      {nodes, [
+        {"127.0.0.1", 6379}
+      ]},
+      {db, 0},
+      {password, ""},
+      {pool_size, 10}
+      %%{max_overflow, 5}
+    ]}
+  ]}
 ]}.
