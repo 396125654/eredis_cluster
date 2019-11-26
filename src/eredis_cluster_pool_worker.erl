@@ -4,7 +4,7 @@
 
 %% API.
 -export([start_link/1]).
--export([query/2]).
+-export([query/2, query_noreply/2]).
 
 %% gen_server.
 -export([init/1]).
@@ -17,49 +17,61 @@
 -record(state, {conn}).
 
 start_link(Args) ->
-    gen_server:start_link(?MODULE, Args, []).
+  gen_server:start_link(?MODULE, Args, []).
 
 init(Args) ->
-    Hostname = proplists:get_value(host, Args),
-    Port = proplists:get_value(port, Args),
-    DataBase = proplists:get_value(database, Args, 0),
-    Password = proplists:get_value(password, Args, ""),
+  Hostname = proplists:get_value(host, Args),
+  Port = proplists:get_value(port, Args),
+  DataBase = proplists:get_value(database, Args, 0),
+  Password = proplists:get_value(password, Args, ""),
 
-    process_flag(trap_exit, true),
-    Result = eredis:start_link(Hostname,Port, DataBase, Password),
-    process_flag(trap_exit, false),
+  process_flag(trap_exit, true),
+  Result = eredis:start_link(Hostname, Port, DataBase, Password),
+  process_flag(trap_exit, false),
 
-    Conn = case Result of
-        {ok,Connection} ->
-            Connection;
-        _ ->
-            undefined
-    end,
+  Conn = case Result of
+           {ok, Connection} ->
+             Connection;
+           _ ->
+             undefined
+         end,
 
-    {ok, #state{conn=Conn}}.
+  {ok, #state{conn = Conn}}.
 
 query(Worker, Commands) ->
-    gen_server:call(Worker, {'query', Commands}).
+  gen_server:call(Worker, {'query', Commands}).
+
+query_noreply(Worker, Commands) ->
+  gen_server:cast(Worker, {'query', Commands}).
 
 handle_call({'query', _}, _From, #state{conn = undefined} = State) ->
-    {reply, {error, no_connection}, State};
-handle_call({'query', [[X|_]|_] = Commands}, _From, #state{conn = Conn} = State)
-    when is_list(X); is_binary(X) ->
-    {reply, eredis:qp(Conn, Commands), State};
+  {reply, {error, no_connection}, State};
+handle_call({'query', [[X | _] | _] = Commands}, _From, #state{conn = Conn} = State)
+  when is_list(X); is_binary(X) ->
+  {reply, eredis:qp(Conn, Commands), State};
 handle_call({'query', Command}, _From, #state{conn = Conn} = State) ->
-    {reply, eredis:q(Conn, Command), State};
+  {reply, eredis:q(Conn, Command), State};
 handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+  {reply, ok, State}.
 
+handle_cast({'query', _}, #state{conn = undefined} = State) ->
+  {noreply, {error, no_connection}, State};
+handle_cast({'query', [[X | _] | _] = Commands}, #state{conn = Conn} = State)
+  when is_list(X); is_binary(X) ->
+  eredis:qp(Conn, Commands),
+  {noreply, State};
+handle_cast({'query', Command}, #state{conn = Conn} = State) ->
+  eredis:q(Conn, Command),
+  {noreply, State};
 handle_cast(_Msg, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
 handle_info(_Info, State) ->
-    {noreply, State}.
+  {noreply, State}.
 
-terminate(_Reason, #state{conn=Conn}) ->
-    ok = eredis:stop(Conn),
-    ok.
+terminate(_Reason, #state{conn = Conn}) ->
+  ok = eredis:stop(Conn),
+  ok.
 
 code_change(_OldVsn, State, _Extra) ->
-    {ok, State}.
+  {ok, State}.
